@@ -19,6 +19,18 @@ Here we benchmark the performance of an alert distribution testbed using this st
 Introduction
 ============
 
+Current performance requirements on the LSST alert system expect to distribute ``nAlertVisitAvg`` = 10,000 alert events every 39 seconds.
+This averages to ~250 alerts per second, though may be transmitted at a higher, much more bursty rate, compared to the current VOEvent rate of ~1 alert per minute.
+The LSST alerts are planned to contain a significant amount of information in each alert event packet,
+including individual event measurements made on the difference image, a measure of the "spuriousness" of the event,
+a limited history of previous observations of the object associated with the event if known, characteristics of the variability of the object's lightcurve,
+the IDs and distances to nearby known objects, and cutout images of both the difference image and the template that was subtracted.
+The experiments here use a template alert event packet as described below with very limited content (e.g. no history) with a size of 136 KB, primarily dominated by the 90 KB size of the two cutout images in FITS format.
+A full alert packet with all event measurements and a history of previous observations will be larger.
+On the receiving end of the alert distribution system will be community brokers and a limited filtering service mini-broker.
+The LSST filtering service is expected to be able to support ``numBrokerUsers`` = 100 simultaneous connected users each receiving at most ``numBrokerAlerts`` = 20 full alerts per visit.
+In order to meet LSST's alert stream needs, the alert distribution system must be able to scale to support the expected volume of the alert stream, to support the number of connections, and to allow filtering capabilities that can be made user friendly with simple Python or SQL-like language.
+Here we test the scalability of a preliminary mock alert distribution system testbed.
 
 Technology Suite
 ================
@@ -45,7 +57,7 @@ Spark
 For alert filtering, we are experimenting with `Apache Spark <http://spark.apache.org>`__.
 Spark is a computing platform in the Hadoop ecosystem for big data.
 The key relevant feature for this work is Spark Streaming, which allows a simple way to write streaming applications in way similar to tradition batch jobs.
-Spark Streaming allows for alert filters to be written in simple familiar Python.
+Spark Streaming allows for alert filters to be written in simple familiar Python and can be natively connected to Kafka.
 The initial benchmarking results here do not include filtering with Spark, but we mention it here for because of its fit in the choices for the overall ecosystem.
 
 Benchmarking Experiments
