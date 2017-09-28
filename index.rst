@@ -19,8 +19,8 @@ Here we benchmark the performance of an alert distribution testbed using this st
 Introduction
 ============
 
-Current performance requirements on the LSST alert system expect to distribute ``nAlertVisitAvg`` = 10,000 alert events every 39 seconds.
-This averages to ~250 alerts per second, though may be transmitted at a higher, much more bursty rate, compared to the current VOEvent rate of ~1 alert per minute.
+Current performance requirements on the LSST alert system expect to distribute at minimum``nAlertVisitAvg`` = 10,000 alert events every 39 seconds, with a stretch goal of supporting 100,000 per visit.
+This minimum averages to ~250 alerts per second, though may be transmitted at a higher, much more bursty rate, compared to the current VOEvent rate of ~1 alert per minute.
 The LSST alerts are planned to contain a significant amount of information in each alert event packet,
 including individual event measurements made on the difference image, a measure of the "spuriousness" of the event,
 a limited history of previous observations of the object associated with the event if known, characteristics of the variability of the object's lightcurve,
@@ -78,6 +78,7 @@ For monitoring the ecosystem deployment with Docker Swarm, we used `"swarmprom" 
 Initial Benchmark
 -----------------
 As a first benchmark, we deployed one Kafka broker and one Zookeeper listening to a single alert producer serializing and sending 1,000 alerts (~rate expected from the Zwicky Transient Facility) repeatedly every 39 seconds with two alert consumers on the receiving end of the alerts for 1000 visits or 1 million total alerts.
+This ZTF scale test will be supplemented by larger scale tests to derive scaling curves.
 
 The system was run on Amazon's Web Services (AWS) using the `Docker for AWS <https://docs.docker.com/docker-for-aws/>`__ CloudFormation `Template <https://editions-us-east-1.s3.amazonaws.com/aws/stable/Docker.tmpl>`__.
 The Docker Swarm size was set to a cluster of 3 Swarm managers and 5 Swarm worker nodes.
