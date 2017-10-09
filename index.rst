@@ -183,3 +183,53 @@ The bandwidth out is higher than in because this experiment has two consumers re
 
    Network traffic in and out of Kafka.
    The x-axis ticks are demarcated at time intervals of 1 hour and 40 minutes.
+
+Scaling Alert Volume
+--------------------
+To complement the initial benchmarking experiment at ZTF scale and derive scaling curves, we ran several similar tests varying the total number of alerts produced per visit.
+We set the alert producer to serialize and produce 100, 1,000, and 10,000 alerts per visit and
+also ran each of those tests once including and once without including the postage stamp cutout files in the alert packets to further vary the volume of data sent per visit.
+The tests use the same testbed setup as the initial benchmark experiment, using Docker for AWS as described above,
+with again 3 Swarm managers and 5 Swarm worker nodes on r3.xlarge machines.
+For the larger experiments, we increased the instance ephemeral storage to the maximum of 1 TiB.
+
+Results
+^^^^^^^
+Given the results from the initial benchmark, the most interesting metrics or where the Kakfa system uses a significant amount of resources are
+the timing metrics for serialization and for transportation of alerts, memory usage for Kafka, and network traffic in and out of the Kafka system.
+
+In :numref:`figure-2` and :numref:`figure-3`, we show the mean time it takes to serialize into Avro format and send a batch of alerts to Kafka.
+100 alerts takes about 1 second to serialize and send to Kafka, 1,000 alerts takes about 3-4 seconds, and 10,000 alerts takes about 28-33 seconds for a single producer.
+A single producer then can serialize about 300 alerts into Avro per second.
+
+.. figure:: _static/serialTimeAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-2
+
+   Alert serialization time vs number of alerts in a batch.
+
+.. figure:: _static/serialTimeSize.png
+   :width: 55%
+   :align: center
+   :name: figure-3
+
+   Alert serialization time vs volume of alerts.
+
+:numref:`figure-4` and :numref:`figure-5` show the mean time it takes for the last alert in a batch produced to be sent through Kafka and received by a consumer.
+For all experiments, the transport time is low, between 0.10 - 0.30 seconds.
+The time spent serializing alerts into Avro format on the producer end dominates over the transport time.
+
+.. figure:: _static/transitTimeAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-4
+
+   Alert transit time vs number of alerts in a batch.
+
+.. figure:: _static/transitTimeSize.png
+   :width: 55%
+   :align: center
+   :name: figure-5
+
+   Alert transit time vs volume of alerts.
