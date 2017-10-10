@@ -233,3 +233,60 @@ The time spent serializing alerts into Avro format on the producer end dominates
    :name: figure-5
 
    Alert transit time vs volume of alerts.
+
+:numref:`figure-6` and :numref:`figure-7` show the average memory usage by Kafka over the length of each experiment.
+A back-of-the-envelope calculation for estimating memory needs says that if you want Kafka to buffer for 30 seconds then
+the memory need is write_throughput*30.  If we say on average the alert throughput is at least 250 alerts/second
+(but really bursty and likely higher) then the memory estimate is 250 alerts/sec * 135 KB/alert * 30 seconds = 10+ Gigabytes.
+Memory usage increases more rapidly with data volume for the larger single alert size (including postage stamps),
+nearing the maximum for the compute instance size for 1,000 and 10,000 alerts per visit with stamps.
+
+.. figure:: _static/memoryAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-6
+
+   Kafka memory usage vs number of alerts in a batch.
+
+.. figure:: _static/memorySize.png
+   :width: 55%
+   :align: center
+   :name: figure-7
+
+   Kafka memory usage vs volume of alerts.
+
+:numref:`figure-8` - :numref:`figure-11` show the peak network traffic in and out of the Kafka broker.
+For 10,000 alerts, the alert producer creates a peak of 23 MiBps into Kafka,
+and the two consumers double the network traffic out at 45 MiBps.
+
+.. figure:: _static/netInAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-8
+
+   Network traffic into Kafka vs number of alerts in a batch.
+
+.. figure:: _static/netInSize.png
+   :width: 55%
+   :align: center
+   :name: figure-9
+
+   Network traffic into Kafka vs volume of data in a batch.
+
+.. figure:: _static/netOutAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-10
+
+   Network traffic out of Kafka vs number of alerts in a batch.
+
+.. figure:: _static/netOutSize.png
+   :width: 55%
+   :align: center
+   :name: figure-11
+
+   Network traffic out of Kafka vs volume of data in a batch.
+
+Scaling Producers and Consumers
+-------------------------------
+To be completed.
