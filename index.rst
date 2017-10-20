@@ -19,7 +19,7 @@ Here we benchmark the performance of an alert distribution testbed using this st
 Introduction
 ============
 
-Current performance requirements on the LSST alert system expect to distribute at minimum``nAlertVisitAvg`` = 10,000 alert events every 39 seconds, with a stretch goal of supporting 100,000 per visit.
+Current performance requirements on the LSST alert system expect to distribute at minimum ``nAlertVisitAvg`` = 10,000 alert events every 39 seconds, with a stretch goal of supporting 100,000 per visit.
 This minimum averages to ~250 alerts per second, though may be transmitted at a higher, much more bursty rate, compared to the current VOEvent rate of ~1 alert per minute.
 The LSST alerts are planned to contain a significant amount of information in each alert event packet,
 including individual event measurements made on the difference image, a measure of the "spuriousness" of the event,
@@ -105,15 +105,15 @@ The following measurements were derived from observations output every 5 minutes
   +-----------------------------------------------+--------------------+---------------+
   |     CPU (%)                                   | Mean +/- Stddev    |      Max      |
   +===============================================+====================+===============+
-  | Kafka                                         |0.090 +/- 0.038     | 0.390         |
+  | Kafka                                         | 9.0 +/- 3.8        |  39.0         |
   +-----------------------------------------------+--------------------+---------------+
-  | Zookeeper                                     |< 0.001 +/- 0.001   | 0.013         |
+  | Zookeeper                                     |< 0.1 +/- 0.1       |   1.3         |
   +-----------------------------------------------+--------------------+---------------+
-  | Producer                                      |0.239 +/- 0.064     | 0.448         |
+  | Producer                                      | 23.9 +/- 6.4       |  44.8         |
   +-----------------------------------------------+--------------------+---------------+
-  | Consumer1                                     |0.083 +/- 0.024     | 0.156         |
+  | Consumer1                                     | 8.3 +/-  2.4       |  15.6         |
   +-----------------------------------------------+--------------------+---------------+
-  | Consumer2                                     |0.001 +/- 0.001     | 0.006         |
+  | Consumer2                                     | 0.1 +/- 0.1        |   0.6         |
   +-----------------------------------------------+--------------------+---------------+
 
   +-----------------------------------------------+--------------------+---------------+
@@ -183,3 +183,110 @@ The bandwidth out is higher than in because this experiment has two consumers re
 
    Network traffic in and out of Kafka.
    The x-axis ticks are demarcated at time intervals of 1 hour and 40 minutes.
+
+Scaling Alert Volume
+--------------------
+To complement the initial benchmarking experiment at ZTF scale and derive scaling curves, we ran several similar tests varying the total number of alerts produced per visit.
+We set the alert producer to serialize and produce 100, 1,000, and 10,000 alerts per visit and
+also ran each of those tests once including and once without including the postage stamp cutout files in the alert packets to further vary the volume of data sent per visit.
+The tests use the same testbed setup as the initial benchmark experiment, using Docker for AWS as described above,
+with again 3 Swarm managers and 5 Swarm worker nodes on r3.xlarge machines.
+For the larger experiments, we increased the instance ephemeral storage to the maximum of 1 TiB.
+
+Results
+^^^^^^^
+Given the results from the initial benchmark, the most interesting metrics or where the Kakfa system uses a significant amount of resources are
+the timing metrics for serialization and for transportation of alerts, memory usage for Kafka, and network traffic in and out of the Kafka system.
+
+In :numref:`figure-2` and :numref:`figure-3`, we show the mean time it takes to serialize into Avro format and send a batch of alerts to Kafka.
+100 alerts takes about 1 second to serialize and send to Kafka, 1,000 alerts takes about 3-4 seconds, and 10,000 alerts takes about 28-33 seconds for a single producer.
+A single producer then can serialize about 300 alerts into Avro per second.
+
+.. figure:: _static/serialTimeAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-2
+
+   Alert serialization time vs number of alerts in a batch with best fit linear relations overplotted.
+
+.. figure:: _static/serialTimeSize.png
+   :width: 55%
+   :align: center
+   :name: figure-3
+
+   Alert serialization time vs volume of alerts with best fit linear relations overplotted.
+
+:numref:`figure-4` and :numref:`figure-5` show the mean time it takes for the last alert in a batch produced to be sent through Kafka and received by a consumer.
+For all experiments, the transport time is low, between 0.10 - 0.30 seconds.
+The time spent serializing alerts into Avro format on the producer end dominates over the transport time.
+
+.. figure:: _static/transitTimeAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-4
+
+   Alert transit time vs number of alerts in a batch with best fit linear relations overplotted.
+
+.. figure:: _static/transitTimeSize.png
+   :width: 55%
+   :align: center
+   :name: figure-5
+
+   Alert transit time vs volume of alerts with best fit linear relations overplotted.
+
+:numref:`figure-6` and :numref:`figure-7` show the average memory usage by Kafka over the length of each experiment.
+A back-of-the-envelope calculation for estimating memory needs says that if you want Kafka to buffer for 30 seconds then
+the memory need is write_throughput*30.  If we say on average the alert throughput is at least 250 alerts/second
+(but really bursty and likely higher) then the memory estimate is 250 alerts/sec * 135 KB/alert * 30 seconds = 10+ Gigabytes.
+Memory usage increases more rapidly with data volume for the larger single alert size (including postage stamps),
+nearing the maximum for the compute instance size for 1,000 and 10,000 alerts per visit with stamps.
+
+.. figure:: _static/memoryAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-6
+
+   Kafka memory usage vs number of alerts in a batch with best fit linear relations overplotted.
+
+.. figure:: _static/memorySize.png
+   :width: 55%
+   :align: center
+   :name: figure-7
+
+   Kafka memory usage vs volume of alerts with best fit linear relations overplotted.
+
+:numref:`figure-8` - :numref:`figure-11` show the peak network traffic in and out of the Kafka broker.
+For 10,000 alerts, the alert producer creates a peak of 23 MiBps into Kafka,
+and the two consumers double the network traffic out at 45 MiBps.
+
+.. figure:: _static/netInAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-8
+
+   Network traffic into Kafka vs number of alerts in a batch with best fit linear relations overplotted.
+
+.. figure:: _static/netInSize.png
+   :width: 55%
+   :align: center
+   :name: figure-9
+
+   Network traffic into Kafka vs volume of data in a batch with best fit linear relations overplotted.
+
+.. figure:: _static/netOutAlerts.png
+   :width: 55%
+   :align: center
+   :name: figure-10
+
+   Network traffic out of Kafka vs number of alerts in a batch with best fit linear relations overplotted.
+
+.. figure:: _static/netOutSize.png
+   :width: 55%
+   :align: center
+   :name: figure-11
+
+   Network traffic out of Kafka vs volume of data in a batch with best fit linear relations overplotted.
+
+Scaling Producers and Consumers
+-------------------------------
+To be completed.
