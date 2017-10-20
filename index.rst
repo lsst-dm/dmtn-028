@@ -19,7 +19,7 @@ Here we benchmark the performance of an alert distribution testbed using this st
 Introduction
 ============
 
-Current performance requirements on the LSST alert system expect to distribute at minimum``nAlertVisitAvg`` = 10,000 alert events every 39 seconds, with a stretch goal of supporting 100,000 per visit.
+Current performance requirements on the LSST alert system expect to distribute at minimum ``nAlertVisitAvg`` = 10,000 alert events every 39 seconds, with a stretch goal of supporting 100,000 per visit.
 This minimum averages to ~250 alerts per second, though may be transmitted at a higher, much more bursty rate, compared to the current VOEvent rate of ~1 alert per minute.
 The LSST alerts are planned to contain a significant amount of information in each alert event packet,
 including individual event measurements made on the difference image, a measure of the "spuriousness" of the event,
@@ -207,14 +207,14 @@ A single producer then can serialize about 300 alerts into Avro per second.
    :align: center
    :name: figure-2
 
-   Alert serialization time vs number of alerts in a batch.
+   Alert serialization time vs number of alerts in a batch with best fit linear relations overplotted.
 
 .. figure:: _static/serialTimeSize.png
    :width: 55%
    :align: center
    :name: figure-3
 
-   Alert serialization time vs volume of alerts.
+   Alert serialization time vs volume of alerts with best fit linear relations overplotted.
 
 :numref:`figure-4` and :numref:`figure-5` show the mean time it takes for the last alert in a batch produced to be sent through Kafka and received by a consumer.
 For all experiments, the transport time is low, between 0.10 - 0.30 seconds.
@@ -225,14 +225,14 @@ The time spent serializing alerts into Avro format on the producer end dominates
    :align: center
    :name: figure-4
 
-   Alert transit time vs number of alerts in a batch.
+   Alert transit time vs number of alerts in a batch with best fit linear relations overplotted.
 
 .. figure:: _static/transitTimeSize.png
    :width: 55%
    :align: center
    :name: figure-5
 
-   Alert transit time vs volume of alerts.
+   Alert transit time vs volume of alerts with best fit linear relations overplotted.
 
 :numref:`figure-6` and :numref:`figure-7` show the average memory usage by Kafka over the length of each experiment.
 A back-of-the-envelope calculation for estimating memory needs says that if you want Kafka to buffer for 30 seconds then
@@ -246,14 +246,14 @@ nearing the maximum for the compute instance size for 1,000 and 10,000 alerts pe
    :align: center
    :name: figure-6
 
-   Kafka memory usage vs number of alerts in a batch.
+   Kafka memory usage vs number of alerts in a batch with best fit linear relations overplotted.
 
 .. figure:: _static/memorySize.png
    :width: 55%
    :align: center
    :name: figure-7
 
-   Kafka memory usage vs volume of alerts.
+   Kafka memory usage vs volume of alerts with best fit linear relations overplotted.
 
 :numref:`figure-8` - :numref:`figure-11` show the peak network traffic in and out of the Kafka broker.
 For 10,000 alerts, the alert producer creates a peak of 23 MiBps into Kafka,
@@ -264,28 +264,28 @@ and the two consumers double the network traffic out at 45 MiBps.
    :align: center
    :name: figure-8
 
-   Network traffic into Kafka vs number of alerts in a batch.
+   Network traffic into Kafka vs number of alerts in a batch with best fit linear relations overplotted.
 
 .. figure:: _static/netInSize.png
    :width: 55%
    :align: center
    :name: figure-9
 
-   Network traffic into Kafka vs volume of data in a batch.
+   Network traffic into Kafka vs volume of data in a batch with best fit linear relations overplotted.
 
 .. figure:: _static/netOutAlerts.png
    :width: 55%
    :align: center
    :name: figure-10
 
-   Network traffic out of Kafka vs number of alerts in a batch.
+   Network traffic out of Kafka vs number of alerts in a batch with best fit linear relations overplotted.
 
 .. figure:: _static/netOutSize.png
    :width: 55%
    :align: center
    :name: figure-11
 
-   Network traffic out of Kafka vs volume of data in a batch.
+   Network traffic out of Kafka vs volume of data in a batch with best fit linear relations overplotted.
 
 Scaling Producers and Consumers
 -------------------------------
