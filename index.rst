@@ -287,6 +287,55 @@ and the two consumers double the network traffic out at 45 MiBps.
 
    Network traffic out of Kafka vs volume of data in a batch with best fit linear relations overplotted.
 
-Scaling Producers and Consumers
--------------------------------
+
+Scaling Alert Producers
+-----------------------
+We ran several simulations increasing the total number of alert producers, holding all else constant,
+again with two consumers, one consumer counting and printing every 100th alert and one consumer used for the timestamps
+which prints only the latest offset upon reaching the end of the topic's partition (i.e., when there are no more alerts to read.)
+We tested 1, 10, 100, and 200 alert producers serializing and producing in total 10,000 alerts per visit
+(e.g., 200 alert producers each producing 50 alerts.)
+Assuming 189 CCDs for LSST and a unit of pipeline compute parallelization per CCD,
+the experiment with 200 producers each producing 50 alerts is most similar to what we might expect in practice.
+We also ran each of those tests once including and once without including the postage stamp cutout files in the alert packets.
+The tests use a similar testbed setup as the initial benchmark experiment, using Docker for AWS as described above,
+but with 3 Swarm managers and 10 or 15 Swarm worker nodes on r3.xlarge machines to allow for the additional producer containers.
+
+Results
+^^^^^^^
+For the performance metrics measured for the Kafka container, particularly memory and network traffic in and out,
+there is no significant difference between the values for a single alert producer producing 10,000 alerts per visit and an increased number of producers.
+Increasing the number of producers does make a measurable difference for the time to serialize 10,000 alerts and for end-to-end transport time.
+
+.. figure:: _static/serialTimeProducers.png
+   :width: 55%
+   :align: center
+   :name: figure-3
+
+   Alert serialization time vs number of producers serializing a total of 10,000 alerts.
+
+The time to serialize and send alerts to Kafka decreases with the number of producers,
+essentially a reflection of the parallelization of the task with a small additional overhead.
+One producer serializing 100 alerts takes 1.29 +/- 0.06 seconds, whereas 100 producers serializing and
+sending 100 alerts each to Kafka takes 5.9 +/- 1.3 seconds.
+
+.. figure:: _static/transitTimeProducers.png
+   :width: 55%
+   :align: center
+   :name: figure-5
+
+   Alert transit time vs number of producers with best fit lines overplotted.
+
+The transit time between when a visit of alerts is finished sending to Kafka and when a consumer has finished reading to the end of the topic's partition
+increases significantly with additional producers for the simulations which include postage stamp cutouts in the alert packets.
+For one alert producer with and without stamps and for all simulations without stamps, the transit time is less than 1 second.
+For 200 producers with 50 alerts each with stamps, the average transit time for a visit of alerts increases to 22.6 seconds.
+Because of the difference between experiments including stamps and excluding stamps, there may be a configuration change necessary
+that is related to the average message size.
+One potential configuration parameter to experiment with tuning is the producer ``batch.size``, which has a default size of 16384 bytes,
+smaller than a single alert message.
+
+
+Scaling Alert Consumers
+-----------------------
 To be completed.
