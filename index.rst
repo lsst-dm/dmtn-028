@@ -452,4 +452,7 @@ to be accessible from Kafka, and a slow consumer can have additional processing 
 can slow the process, but the transit and consumption time should still be considered.  Consumer reading of the
 stream can easily be parallelized for faster processing.  The parallelization is controlled by the number of
 topic partitions, so increasing the number of partitions can decrease consumer read time such that consumers
-do not lag behind bursts if the consumers read in consumer groups in parallel.
+do not lag behind bursts if the consumers read in consumer groups in parallel.  For the critical time from
+producer serialization into Avro and submission to Kafka, the time it takes for the alert distribution to get
+alerts into the queue and ready to be read by consumers can be expected to be about 6-9 seconds when stamps
+are included and 1-3 seconds without stamps.
