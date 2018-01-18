@@ -369,8 +369,10 @@ instances on AWS.
 
    Kafka container memory utilization against number of consumers.
 
-For the 1+1 consumer test, instances were only allotted 32 GB of memory.  The other tests had 256 GiB memory
-available and utilize more memory.  Tests with stamps included in alerts are significantly more memory
+During testing for the two consumer test, instances were only allotted 32 GiB of memory.
+While debugging slow performance with multiple consumers, we increased the available memory
+to 256 GiB and observed that Kafka then utilized more memory.
+Tests with stamps included in alerts are significantly more memory
 intensive for Kafka than tests without including postage stamps cutouts.
 
 For these tests there is no difference for the network traffic into Kafka, as we are still sending 10,000 alerts
