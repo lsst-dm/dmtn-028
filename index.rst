@@ -387,10 +387,11 @@ up to 180000 KiBps (180 Mbps) for 10+1 consumers, since each consumer pulls its 
    Network traffic out of Kafka against number of consumers.
 
 Below shows the length of time it takes for producers to serialize alerts into Avro and produce to the Kafka
-broker.  Having more consumers has a small impact on the producer time.
-For the 1+1 consumer test, we used only one producer sending 10,000 alerts (unparallelized), which is
-why the time is slightly higher.  For the other three tests, the serialization and producing time increases
-slightly and linearly to 9 seconds.  With more producers producing in parallel (one per CCD),
+broker.  In the case of one producer serializing the full alert stream, increasing consumers has a
+very large effect on the producer speed, lagging the end-to-end process.
+After increasing to ten producers, as shown, below, having more consumers has a smaller impact on the
+producer time.  The serialization and producing time increases
+slightly and near linearly to 9 seconds.  With more producers producing in parallel (one per CCD),
 this number would likely be lower.
 
 .. figure:: _static/serialTimeConsumers.png
