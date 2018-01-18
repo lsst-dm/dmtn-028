@@ -425,7 +425,7 @@ increasing for alert bursts for 300 visits.
    Length of time from Kafka to consumer receipt and processing in seconds (y axis) vs. visit number (x axis).
 
 Fortunately, even with the very slow consumer read time, the producer submission time does not appear to be
-affected.
+affected with the number of parallel producers increased to ten.
 
 
 Thoughts and Recommendations
