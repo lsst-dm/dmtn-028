@@ -354,8 +354,10 @@ of the pipeline.
 
 Results
 ^^^^^^^
-For scale testing of consumers, we used 1 consumer printing every 100th alert + 1 fast consumer dropping alerts,
-3+1 consumers, 5+1, and 10+1, testing both with postage stamps and without.
+For scale testing of consumers, we performed four different tests, one with two consumers, one with
+four, one with six, and one with eleven.  In each test, all but used one consumer processes the stream
+by printing every 100th alert and the remaining consumer reads the stream and just drops the messages.
+Each of the four tests were run both with postage stamps and without, for a total of eight tests.
 
 Below shows the memory utilization of Kafka with an increased number of consumers and larger allotted
 instances on AWS.
