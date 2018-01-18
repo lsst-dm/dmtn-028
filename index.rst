@@ -432,8 +432,11 @@ Thoughts and Recommendations
 ----------------------------
 For most experiments and metrics measured, assuming that the size of alerts has been estimated accurately,
 there is a significant impact on Kafka compute utilization and
-timing when postage stamp cutouts are included in the alert packets.  Additional consideration should be
-given to alternatives for the distribution of stamps, if possible.  One alternative to including postage
+timing when postage stamp cutouts are included in the alert packets.
+The inclusion of postage stamp cutouts is currently a science requirement, however,
+results here suggest that additional consideration be
+given to alternatives for the distribution of stamps, if it is possible
+that the current requirements may be adjusted.  One alternative to including postage
 stamps in the stream, recommended by other users of Kafka for large messages, is to forego including the
 stamps in the stream and instead include a url to the location of the stamps from which the stamp can be
 accessed separately.  This would particularly alleviate the increased network traffic for each additional
