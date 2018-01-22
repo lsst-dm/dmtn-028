@@ -310,7 +310,7 @@ Increasing the number of producers does make a measurable difference for the tim
 .. figure:: _static/serialTimeProducers.png
    :width: 55%
    :align: center
-   :name: figure-3
+   :name: figure-12
 
    Alert serialization time vs number of producers serializing a total of 10,000 alerts.
 
@@ -322,7 +322,7 @@ sending 100 alerts each to Kafka takes 5.9 +/- 1.3 seconds.
 .. figure:: _static/transitTimeProducers.png
    :width: 55%
    :align: center
-   :name: figure-5
+   :name: figure-13
 
    Alert transit time vs number of producers with best fit lines overplotted.
 
@@ -338,4 +338,129 @@ smaller than a single alert message.
 
 Scaling Alert Consumers
 -----------------------
-To be completed.
+In testing an increased numbers of consumers, we encountered issues with the default Kafka settings and a single
+producer producing 10,000 alerts.  The increased of number of consumers slowed the producer's submission of
+alerts to the Kafka queue so much as to lag behind the 39 second pause between bursts of alerts from sequential
+visits.  Instead of a single producer, we used 10 producers each producing 1,000 alerts, and we increased the
+Java heap size of Kafka to 8 GB.  We also used a more powerful AWS cluster for our Docker Swarm.
+We used 3 Swarm managers on m4.16xlarge instances (64 vCPUs, 256 GiB memory, and 10,000 Mbps EBS bandwidth)
+and 10 worker nodes on m4.4xlarge instances (16 vCPUs, 64 GiB memory, and 2000 Mbps EBS bandwidth) all with
+1 TiB of ephemeral storage.  When initiating Kafka and the alert stream component containers, we made sure
+to constrain the Kafka container to its own node and separate the other containers to different nodes so as
+not to have Kafka competing with other containers for resources.  With these settings, the lagged producer
+problem is resolved.  In practice for the expected LSST alert distribution system in production, this will
+likely not be a problem since there should be one producer per CCD, with the planned compute parallelization
+of the pipeline.
+
+Results
+^^^^^^^
+For scale testing of consumers, we performed four different tests, one with two consumers, one with
+four, one with six, and one with eleven.  In each test, all but used one consumer processes the stream
+by printing every 100th alert and the remaining consumer reads the stream and just drops the messages.
+Each of the four tests were run both with postage stamps and without, for a total of eight tests.
+
+Below shows the memory utilization of Kafka with an increased number of consumers and larger allotted
+instances on AWS.
+
+.. figure:: _static/memoryConsumers.png
+   :width: 55%
+   :align: center
+   :name: figure-14
+
+   Kafka container memory utilization against number of consumers.
+
+During testing for the two consumer test, instances were only allotted 32 GiB of memory.
+While debugging slow performance with multiple consumers, we increased the available memory
+to 256 GiB and observed that Kafka then utilized more memory.
+Tests with stamps included in alerts are significantly more memory
+intensive for Kafka than tests without including postage stamps cutouts.
+
+For these tests there is no difference for the network traffic into Kafka, as we are still sending 10,000 alerts
+in each visit burst.  The network traffic out of Kafka increases linearly with more consumers, as expected,
+up to 180000 KiBps (180 Mbps) for 10+1 consumers, since each consumer pulls its own stream.
+
+.. figure:: _static/netOutConsumers.png
+   :width: 55%
+   :align: center
+   :name: figure-15
+
+   Network traffic out of Kafka against number of consumers.
+
+Below shows the length of time it takes for producers to serialize alerts into Avro and produce to the Kafka
+broker.  In the case of one producer serializing the full alert stream, increasing consumers has a
+very large effect on the producer speed, lagging the end-to-end process.
+After increasing to ten producers, as shown, below, having more consumers has a smaller impact on the
+producer time.  The serialization and producing time increases
+slightly and near linearly to 9 seconds.  With more producers producing in parallel (one per CCD),
+this number would likely be lower.
+
+.. figure:: _static/serialTimeConsumers.png
+   :width: 55%
+   :align: center
+   :name: figure-16
+
+   Serialization and Kafka submission time for producers against number of consumers.
+
+The transit time of alerts, the time it takes for alerts to be read by the consumers after they have been
+submitted into the Kafka queue, increases with number of consumers.  Below shows the relationship between
+the transit time and number of consumers.
+
+
+.. figure:: _static/transitTimeConsumers.png
+   :width: 55%
+   :align: center
+   :name: figure-17
+
+   Transit time of alerts to consumers against number of consumers.
+
+For the test with 10+1 consumers including postage stamp cutouts, the average transit time is very large.
+The consumers are unable to keep up with bursts of alerts every 39 seconds.  Below shows the transit time lag
+increasing for alert bursts for 300 visits.
+
+.. figure:: _static/slowConsumer.png
+   :width: 55%
+   :align: center
+   :name: figure-18
+
+   Length of time from Kafka to consumer receipt and processing in seconds (y axis) vs. visit number (x axis).
+
+Fortunately, even with the very slow consumer read time, the producer submission time does not appear to be
+affected with the number of parallel producers increased to ten.
+
+
+Thoughts and Recommendations
+----------------------------
+For most experiments and metrics measured, assuming that the size of alerts has been estimated accurately,
+there is a significant impact on Kafka compute utilization and
+timing when postage stamp cutouts are included in the alert packets.
+The inclusion of postage stamp cutouts is currently a science requirement, however,
+results here suggest that additional consideration be
+given to alternatives for the distribution of stamps, if it is possible
+that the current requirements may be adjusted.  One alternative to including postage
+stamps in the stream, recommended by other users of Kafka for large messages, is to forego including the
+stamps in the stream and instead include a url to the location of the stamps from which the stamp can be
+accessed separately.  This would particularly alleviate the increased network traffic for each additional
+consumer reading a stream.  Another potentially possible alternative could be to separate the postage stamps
+into their own Kafka topic.  If not all primary consumers are required or expected to read postage stamp
+cutouts and pass them to downstream users, this could decrease the total network traffic, since not all
+consumers would pull from the larger stream of stamps.  A downstream filter could then unite alerts of interest
+with corresponding stamps.  The feasibility of this option for combining streams still needs to be further investigated.
+
+It is unclear why an increased number of consumers would significantly slow a single producer as to be unable
+to keep up with the 39 second separation between bursts.  With larger instance sizes, there should be no bottleneck
+in reading from disk and no bottleneck in the total network traffic.  Though the parallelization of compute per CCD, i.e.,
+an increased number of producers in parallel, should eliminate this problem, there is the possibility of
+performance improvement if this issue can be addressed.  Preliminary testing indicates that adjusting three
+parameters, ``buffer.memory``, ``batch.size``, and ``linger.ms``, together may help.  Using multiple partitions
+may also help.  All tests above use a single partition for a single topic.
+
+It is also unclear why the consumers consumption time is slowed for the case of 10+1 consumers reading a stream
+with stamps.  The consumer consumption time is outside the total alert production pipeline time for the alerts
+to be accessible from Kafka, and a slow consumer can have additional processing while reading the stream that
+can slow the process, but the transit and consumption time should still be considered.  Consumer reading of the
+stream can easily be parallelized for faster processing.  The parallelization is controlled by the number of
+topic partitions, so increasing the number of partitions can decrease consumer read time such that consumers
+do not lag behind bursts if the consumers read in consumer groups in parallel.  For the critical time from
+producer serialization into Avro and submission to Kafka, the time it takes for the alert distribution to get
+alerts into the queue and ready to be read by consumers can be expected to be about 6-9 seconds when stamps
+are included and 1-3 seconds without stamps.
