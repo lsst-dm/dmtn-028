@@ -442,10 +442,9 @@ can slow the process, but the transit and consumption time should still be consi
 stream can easily be parallelized for faster processing.  The parallelization is controlled by the number of
 topic partitions, so increasing the number of partitions can decrease consumer read time such that consumers
 do not lag behind bursts if the consumers read in consumer groups in parallel, which we explore below.
-For the critical time from
-producer serialization into Avro and submission to Kafka, the time it takes for the alert distribution to get
-alerts into the queue and ready to be read by consumers can be expected to be about 6-9 seconds when stamps
-are included and 1-3 seconds without stamps.
+For the critical time from producer serialization into Avro and submission to Kafka, the time it takes for
+the alert distribution to get alerts into the queue and ready to be read by consumers can be expected to be
+about 6-9 seconds when stamps are included and 1-3 seconds without stamps.
 
 
 Parallelization with Multiple Partitions
@@ -459,7 +458,7 @@ and 10 worker nodes on m4.4xlarge instances (16 vCPUs, 64 GiB memory, and 2000 M
 1 TiB of ephemeral storage, as before.  This simulation used a Kafka cluster of 3 brokers configured to have
 an alert stream topic with 10 partitions, allowing consumers to parallelize into 10 consumer feeds.
 The Kafka containers were constrained to manager nodes and separated from the other alert stream
-producing and consuming containers. We used 100 containers for producers, each producing 100 alerts in
+producing and consuming containers.  We used 100 containers for producers, each producing 100 alerts in
 bursts every 39 seconds.  On the consumer side, we used 10 consumer groups each printing every 100th alert
 and 1 consumer group dropping alerts and printing only end of partition notices
 (i.e., a message that there are no more alerts to read) for monitoring.  Each consumer group consisted
@@ -468,10 +467,10 @@ of 10 individual consumers acting in parallel to consume the full stream.
 Results
 ^^^^^^^
 
-Using a 3-broker Kafka cluster, multiple partitions, and consumer groups decreases the total time alert
-distribution time from initial Avro serialization of alerts to consumer receipt.  No significant difference
+Using a 3-broker Kafka cluster, multiple partitions, and consumer groups decreases the total time to
+distribute alerts, from initial Avro serialization of alerts to consumer receipt.  No significant difference
 from previous experiments of the compute resource utilization is observed.  The impact observed in
-previous simulations of an increased number of consumers slowing the producing time is lessened.
+previous simulations of an increased number of consumers slowing the time to produce alerts is lessened.
 In this case, with 11 consumer groups reading a full stream each, the time to serialize one visit of alerts
 and send the batch to Kafka is less than the experiment with only two consumers and a single partition.
 In the previous experiment with 11 consumers and one partition, the consumers were unable to keep up with
@@ -511,7 +510,7 @@ TO BE EXTENDED AND ORGANIZED IN TICKET DM-13307.
 For most experiments and metrics measured, assuming that the size of alerts has been estimated accurately,
 there is a significant impact on Kafka compute utilization and
 timing when postage stamp cutouts are included in the alert packets.
-The inclusion of postage stamp cutouts is currently a science requirement, however,
+The inclusion of postage stamp cutouts is currently a science requirement.  However,
 results here suggest that additional consideration be
 given to alternatives for the distribution of stamps, if it is possible
 that the current requirements may be adjusted.  One alternative to including postage
@@ -520,6 +519,6 @@ stamps in the stream and instead include a url to the location of the stamps fro
 accessed separately.  This would particularly alleviate the increased network traffic for each additional
 consumer reading a stream.  Another potentially possible alternative could be to separate the postage stamps
 into their own Kafka topic.  If not all primary consumers are required or expected to read postage stamp
-cutouts and pass them to downstream users, this could decrease the total network traffic, since not all
-consumers would pull from the larger stream of stamps.  A downstream filter could then unite alerts of interest
+cutouts and pass them to downstream users, this could decrease the total network traffic.  Not all consumers
+would need to pull from the larger stream of stamps.  A downstream filter could then unite alerts of interest
 with corresponding stamps.  The feasibility of this option for combining streams still needs to be further investigated.
