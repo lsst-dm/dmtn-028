@@ -505,15 +505,117 @@ on the producer end.
 Conclusions
 -----------
 
-TO BE EXTENDED AND ORGANIZED IN TICKET DM-13307.
+Compute Resources and Settings Recommendations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+For a robust alert distribution service, a cluster of at least three Kafka brokers and a replication factor of two
+is recommended.  However, we did not test here the performance effects of a replication factor greater than one.
 
-For most experiments and metrics measured, assuming that the size of alerts has been estimated accurately,
-there is a significant impact on Kafka compute utilization and
-timing when postage stamp cutouts are included in the alert packets.
-The inclusion of postage stamp cutouts is currently a science requirement.  However,
-results here suggest that additional consideration be
-given to alternatives for the distribution of stamps, if it is possible
-that the current requirements may be adjusted.  One alternative to including postage
+Kafka is a memory intensive application.  In the experiments here, each Kafka broker tends to utilize all
+available memory, which it needs to buffer active producers and consumers.
+In terms of hardware recommendations, Confluent, the main contributor to Kafka, recommends a machine with
+64 GB of RAM or an AWS instances with 32 GB.  An appropriate back of the envelope calculation to determine
+hardware needs is `write_throughput`*30 if you want a 30 second buffer.  If we assume one alert is ~135 KB
+and possible bursts of up to 10,000 alerts/second, that is equivalent to 1.35 GB/second.  If we want to buffer
+for between 30-60 seconds, given the time between visits, an appropriate memory range is then between ~40-80 GB.
+
+In all experiments above, Kafka tends to be low on CPU requirements.  It is noted by Confluent that enabling
+SSL can significantly increase the CPU requirements.  A reasonable recommendation is for 24 core machines.
+
+The requirements for storage disk sizes depend on the amount of time we will cache / allow "rewindable" access
+to the alert stream and the number of partitions configured for each topic.  If all alerts are streamed out
+in a single topic and the alert sizing assumptions here are correct, one night of minimal alerts is
+about ~1.5 TB.  Each partition of a topic must fit on its own disk, and it is recommended that these disks
+are dedicated to the Kafka service.  The number of partitions sets the maximum number of readers that can be
+parallelized in a single consumer group.  A reasonable choice would be to start a new "topic" each day, which
+would allow rewinding to the beginning of the night.  Below shows the space needed per disk for different
+numbers of partitions and cache length assumptions for a replication factor of one.
+
+
++-----------------------------+--------------------------------+--------------------------------+
+| Cache/Rewind time allowance | Partitions/Parallel consumers  | Disk space (num disks x size)  |
++=============================+================================+================================+
+| 1 day                       |  1                             |  1 x 1.5 TB                    |
++-----------------------------+--------------------------------+--------------------------------+
+| 1 day                       |  16                            |  16 x 94 GB                    |
++-----------------------------+--------------------------------+--------------------------------+
+| 1 day                       |  32                            |  32 x 47 GB                    |
++-----------------------------+--------------------------------+--------------------------------+
+| 1 day                       |  64                            |  64 x 24 GB                    |
++-----------------------------+--------------------------------+--------------------------------+
+| 1 day                       |  128                           |  128 x 12 GB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 7 days                      |  1                             |  1 x 10.5 TB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 7 days                      |  16                            |  16 x 656 GB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 7 days                      |  32                            |  32 x 328 GB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 7 days                      |  64                            |  64 x 164 GB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 7 days                      |  128                           |  128 x 82 GB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 14 days                     |  1                             |  1 x 21 TB                     |
++-----------------------------+--------------------------------+--------------------------------+
+| 14 days                     |  16                            |  16 x 1.3 TB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 14 days                     |  32                            |  32 x 656 GB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 14 days                     |  64                            |  64 x 328 GB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 14 days                     |  128                           |  128 x 164 GB                  |
++-----------------------------+--------------------------------+--------------------------------+
+| 30 days                     |  1                             |  1 x 45 TB                     |
++-----------------------------+--------------------------------+--------------------------------+
+| 30 days                     |  16                            |  16 x 2.8 TB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 30 days                     |  32                            |  32 x 1.4 TB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 30 days                     |  64                            |  64 x 703 GB                   |
++-----------------------------+--------------------------------+--------------------------------+
+| 30 days                     |  128                           |  128 x 352 GB                  |
++-----------------------------+--------------------------------+--------------------------------+
+
+In the experiments here, an increased number of partitions decreases the total time to distribute alerts on
+both the producer and consumer side and allows consumers to use parallel readers.  A number of partitions
+greater than one is recommended, and if the compute pipeline is parallelized by CCD, one partition per CCD,
+would be a reasonable choice.  More partitions can lead to higher throughput but requires increased memory.
+As a rule of thumb, Confluent recommends no more than 100 * b * r partitions per broker, where b is the number
+of brokers and r is the number of replications.  For a three-broker cluster and a replication of a two,
+the limit is then 600 partitions.
+
+General Suitability
+^^^^^^^^^^^^^^^^^^^
+
+Kafka provides a number of advantages for use as an alert data distribution system.  Data can be easily
+replicated, and the system can be easily scaled to handle a higher load by adding additional brokers.
+The experiments here utilize Docker containers for deploying Kafka, and scaling the number of brokers in the
+system involved simply 1) deploying each broker as a separate container, 2) configuring each broker to
+connect to the instance of Zookeeper, and 3) ensuring that each broker was given a separate ID.
+
+The Kafka system is able to handle a data volume and throughput similar to what is expected for the LSST pipeline.
+We have used here Avro alerts of comparable size to an LSST alert with one detection and including postage stamp
+cutouts with bursts of 10,000 alerts every 39 seconds in experiments running up to 11 hours and encountered no
+data loss.  On the producer side, we were able to parallelize the alert serializers producing to Kafka, and
+the increased connections did not have a noticeable detrimental effect on the system.  On the consumer side,
+we were also able to successfully parallelize the consumers into 10 groups of 10 (100 total stream readers),
+each group pulling the equivalent of 10 streams of data.  With our largest experiment with a configuration
+closest to the stress of the actual expected LSST pipeline (100 producers, 10*10 consumers, 10 partitions),
+we were able to serialize and submit batches of 10,000 alerts to the alert distribution queue in 3.75 +/- 1.30
+seconds, 6.25% of the total 60 second end-to-end pipeline constraint.  Additional producers (one per ccd) may
+decrease the total time further.  Consumer groups acting in parallel were then able to pull and process
+(apply a very simple filter) to the alerts in an additional 10.8 +/- 3.52 seconds.
+
+The most significant issue thus far is that the volume of data will quickly saturate the available network
+bandwidth as the number of consumers (and e.g., filter processes) increases, if parallelization of consumers
+can not be achieved.  Parallelizing alert filter consumers in the mini-broker is yet to be explored.
+Assuming that the size of alerts has been estimated accurately, an Avro serialized alert for a source with
+a single detection and no history is about 140 KB.  Approximately 2/3 of the size of an alert with no history
+is due to the postage stamps for the template and difference image, assuming FITS files with 30 x 30 pixels.
+For most experiments and metrics measured, there is a noticeable impact on Kafka compute utilization, end-to-end
+timing, and, particularly, utilized bandwidth when postage stamp cutouts are included in the alert packets due
+to the large size.  The inclusion of postage stamp cutouts is currently a science requirement.  However, results
+here suggest that additional consideration be given to alternatives for the distribution of stamps, if it is
+possible that the current requirements may be adjusted.  One alternative to including postage
 stamps in the stream, recommended by other users of Kafka for large messages, is to forego including the
 stamps in the stream and instead include a url to the location of the stamps from which the stamp can be
 accessed separately.  This would particularly alleviate the increased network traffic for each additional
