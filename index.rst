@@ -2,11 +2,6 @@
 .. Please do not modify tocdepth; will be fixed when a new Sphinx theme is shipped.
 
 
-.. note::
-
-   **This technote is not yet published.**
-
-
 Abstract
 ========
 
