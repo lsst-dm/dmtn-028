@@ -79,6 +79,8 @@ Initial Benchmark
 -----------------
 As a first benchmark, we deployed one Kafka broker and one Zookeeper listening to a single alert producer serializing and sending 1,000 alerts (~rate expected from the Zwicky Transient Facility) repeatedly every 39 seconds with two alert consumers on the receiving end of the alerts for 1000 visits or 1 million total alerts.
 This ZTF scale test will be supplemented by larger scale tests to derive scaling curves.
+Note well that we use the term "broker" here to mean a broker in the sense of Kafka nodes, whereas any references
+to the LSST mini-broker alert filtering system explicitly use the term "mini-broker."
 
 The system was run on Amazon's Web Services (AWS) using the `Docker for AWS <https://docs.docker.com/docker-for-aws/>`__ CloudFormation `Template <https://editions-us-east-1.s3.amazonaws.com/aws/stable/Docker.tmpl>`__.
 The Docker Swarm size was set to a cluster of 3 Swarm managers and 5 Swarm worker nodes.
@@ -511,10 +513,10 @@ For a robust alert distribution service, a cluster of at least three Kafka broke
 is recommended.  However, we did not test here the performance effects of a replication factor greater than one.
 
 Kafka is a memory intensive application.  In the experiments here, each Kafka broker tends to utilize all
-available memory, which it needs to buffer active producers and consumers.
+available memory, which it needs to buffer events from active producers.
 In terms of hardware recommendations, Confluent, the main contributor to Kafka, recommends a machine with
 64 GB of RAM or an AWS instances with 32 GB.  An appropriate back of the envelope calculation to determine
-hardware needs is `write_throughput`*30 if you want a 30 second buffer.  If we assume one alert is ~135 KB
+hardware needs is ``write_throughput`` *30 if you want a 30 second buffer.  If we assume one alert is ~135 KB
 and possible bursts of up to 10,000 alerts/second, that is equivalent to 1.35 GB/second.  If we want to buffer
 for between 30-60 seconds, given the time between visits, an appropriate memory range is then between ~40-80 GB.
 
@@ -527,8 +529,10 @@ in a single topic and the alert sizing assumptions here are correct, one night o
 about ~1.5 TB.  Each partition of a topic must fit on its own disk, and it is recommended that these disks
 are dedicated to the Kafka service.  The number of partitions sets the maximum number of readers that can be
 parallelized in a single consumer group.  A reasonable choice would be to start a new "topic" each day, which
-would allow rewinding to the beginning of the night.  Below shows the space needed per disk for different
-numbers of partitions and cache length assumptions for a replication factor of one.
+would allow rewinding to the beginning of the night.  Below shows the minimum disk size and the total number
+of those disks needed for different numbers of partitions and cache length assumptions for a replication
+factor of one.  Fewer disks of larger size are also fine as long as no partition is forced to be split over
+multiple disks.  The file system used should be POSIX compliant.
 
 
 +-----------------------------+--------------------------------+--------------------------------+
@@ -601,7 +605,7 @@ we were also able to successfully parallelize the consumers into 10 groups of 10
 each group pulling the equivalent of 10 streams of data.  With our largest experiment with a configuration
 closest to the stress of the actual expected LSST pipeline (100 producers, 10*10 consumers, 10 partitions),
 we were able to serialize and submit batches of 10,000 alerts to the alert distribution queue in 3.75 +/- 1.30
-seconds, 6.25% of the total 60 second end-to-end pipeline constraint.  Additional producers (one per ccd) may
+seconds, 6.25% of the total 60 second end-to-end pipeline constraint.  Additional producers (one per CCD) may
 decrease the total time further.  Consumer groups acting in parallel were then able to pull and process
 (apply a very simple filter) to the alerts in an additional 10.8 +/- 3.52 seconds.
 
